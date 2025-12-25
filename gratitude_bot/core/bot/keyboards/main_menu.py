@@ -8,6 +8,15 @@ HISTORY_BY_DATE_BUTTON = "Посмотреть ответы за дату"
 HISTORY_PROGRESS_BUTTON = "Посмотреть прогресс"
 HISTORY_SEARCH_BUTTON = "Поиск по записям"
 
+HISTORY_BY_DATE_BUTTON = "Посмотреть ответы за дату"
+HISTORY_PROGRESS_BUTTON = "Посмотреть прогресс"
+HISTORY_SEARCH_BUTTON = "Поиск по записям"
+
+STATS_GENERAL_BUTTON = "Общая статистика"
+STATS_CHART_BUTTON = "График заполнений"
+STATS_TOPICS_BUTTON = "Частые темы благодарности"
+STATS_WEEKDAYS_BUTTON = "Статистика по дням недели"
+
 
 def get_main_menu_keyboard():
     """

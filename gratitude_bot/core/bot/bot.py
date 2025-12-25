@@ -84,6 +84,19 @@ from core.bot.keyboards.main_menu import (
     HISTORY_PROGRESS_BUTTON,
     HISTORY_SEARCH_BUTTON,
 )
+from core.bot.handlers.statistics_flow import (
+    statistics_menu,
+    statistics_cancel,
+    statistics_general,
+    statistics_fill_chart,
+    statistics_topics,
+    statistics_weekdays,
+    STATS_MENU,
+    STATS_GENERAL_BUTTON,
+    STATS_CHART_BUTTON,
+    STATS_TOPICS_BUTTON,
+    STATS_WEEKDAYS_BUTTON,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -151,7 +164,23 @@ def build_updater() -> Updater:
     # dp.add_handler(MessageHandler(Filters.regex(r"^Вечер$"), evening_start))
     dp.add_handler(MessageHandler(Filters.regex(r"^Неделя$"), week_menu))
     # dp.add_handler(MessageHandler(Filters.regex(r"^История$"), history_menu))
-    # dp.add_handler(MessageHandler(Filters.regex(r"^Статистика$"), statistics_menu))
+    stats_conv = ConversationHandler(
+    entry_points=[MessageHandler(Filters.regex(r"^Статистика$"), statistics_menu)],
+    states={
+        STATS_MENU: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), statistics_cancel),
+
+            MessageHandler(Filters.regex(rf"^{STATS_GENERAL_BUTTON}$"), statistics_general),
+            MessageHandler(Filters.regex(rf"^{STATS_CHART_BUTTON}$"), statistics_fill_chart),
+            MessageHandler(Filters.regex(rf"^{STATS_TOPICS_BUTTON}$"), statistics_topics),
+            MessageHandler(Filters.regex(rf"^{STATS_WEEKDAYS_BUTTON}$"), statistics_weekdays),
+        ],
+    },
+    fallbacks=[],
+    allow_reentry=True,
+    )
+    dp.add_handler(stats_conv)
+
     # dp.add_handler(MessageHandler(Filters.regex(r"^Настройки$"), settings_menu))
     morning_conv = ConversationHandler(
     entry_points=[
