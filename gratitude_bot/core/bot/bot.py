@@ -17,9 +17,9 @@ from core.bot.handlers.common import start, back_to_main_menu, today_menu
 # from core.bot.handlers.morning import morning_start
 # from core.bot.handlers.evening import evening_start
 # from core.bot.handlers.week import week_menu
-from core.bot.handlers.history import history_menu
-from core.bot.handlers.statistics import statistics_menu
-from core.bot.handlers.settings import settings_menu
+# from core.bot.handlers.history import history_menu
+# from core.bot.handlers.statistics import statistics_menu
+# from core.bot.handlers.settings import settings_menu
 from core.bot.keyboards.main_menu import BACK_BUTTON
 from telegram.ext import ConversationHandler
 
@@ -65,6 +65,25 @@ from core.bot.handlers.week_flow import (
 )
 
 from core.bot.keyboards.main_menu import BACK_BUTTON, get_main_menu_keyboard
+from core.bot.handlers.history_flow import (
+    history_menu,
+    history_by_date_start,
+    history_date_choose,
+    history_date_input,
+    history_progress,
+    history_search_start,
+    history_search_input,
+    history_cancel,
+    HISTORY_MENU,
+    HISTORY_DATE_CHOOSE,
+    HISTORY_DATE_INPUT,
+    HISTORY_SEARCH_INPUT,
+)
+from core.bot.keyboards.main_menu import (
+    HISTORY_BY_DATE_BUTTON,
+    HISTORY_PROGRESS_BUTTON,
+    HISTORY_SEARCH_BUTTON,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -97,14 +116,43 @@ def build_updater() -> Updater:
 
     # /start
     dp.add_handler(CommandHandler("start", start))
+    history_conv = ConversationHandler(
+    entry_points=[
+        MessageHandler(Filters.regex(r"^История$"), history_menu),
+    ],
+    states={
+        HISTORY_MENU: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_cancel),
+
+            MessageHandler(Filters.regex(rf"^{HISTORY_BY_DATE_BUTTON}$"), history_by_date_start),
+            MessageHandler(Filters.regex(rf"^{HISTORY_PROGRESS_BUTTON}$"), history_progress),
+            MessageHandler(Filters.regex(rf"^{HISTORY_SEARCH_BUTTON}$"), history_search_start),
+        ],
+        HISTORY_DATE_CHOOSE: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),  # назад в историю
+            MessageHandler(Filters.text & ~Filters.command, history_date_choose),
+        ],
+        HISTORY_DATE_INPUT: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),
+            MessageHandler(Filters.text & ~Filters.command, history_date_input),
+        ],
+        HISTORY_SEARCH_INPUT: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),
+            MessageHandler(Filters.text & ~Filters.command, history_search_input),
+        ],
+    },
+    fallbacks=[],
+    allow_reentry=True,
+    )
+    dp.add_handler(history_conv)
 
     dp.add_handler(MessageHandler(Filters.regex(r"^Сегодня$"), today_menu))
     # dp.add_handler(MessageHandler(Filters.regex(r"^Утро$"), morning_start))
     # dp.add_handler(MessageHandler(Filters.regex(r"^Вечер$"), evening_start))
     dp.add_handler(MessageHandler(Filters.regex(r"^Неделя$"), week_menu))
-    dp.add_handler(MessageHandler(Filters.regex(r"^История$"), history_menu))
-    dp.add_handler(MessageHandler(Filters.regex(r"^Статистика$"), statistics_menu))
-    dp.add_handler(MessageHandler(Filters.regex(r"^Настройки$"), settings_menu))
+    # dp.add_handler(MessageHandler(Filters.regex(r"^История$"), history_menu))
+    # dp.add_handler(MessageHandler(Filters.regex(r"^Статистика$"), statistics_menu))
+    # dp.add_handler(MessageHandler(Filters.regex(r"^Настройки$"), settings_menu))
     morning_conv = ConversationHandler(
     entry_points=[
         MessageHandler(Filters.regex(r"^Утро$"), morning_start),
@@ -154,9 +202,39 @@ def build_updater() -> Updater:
     )
     dp.add_handler(evening_conv)
 
-    dp.add_handler(
-        MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), back_to_main_menu)
-    )
+    # history_conv = ConversationHandler(
+    # entry_points=[
+    #     MessageHandler(Filters.regex(r"^История$"), history_menu),
+    # ],
+    # states={
+    #     HISTORY_MENU: [
+    #         MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_cancel),
+
+    #         MessageHandler(Filters.regex(rf"^{HISTORY_BY_DATE_BUTTON}$"), history_by_date_start),
+    #         MessageHandler(Filters.regex(rf"^{HISTORY_PROGRESS_BUTTON}$"), history_progress),
+    #         MessageHandler(Filters.regex(rf"^{HISTORY_SEARCH_BUTTON}$"), history_search_start),
+    #     ],
+    #     HISTORY_DATE_CHOOSE: [
+    #         MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),  # назад в историю
+    #         MessageHandler(Filters.text & ~Filters.command, history_date_choose),
+    #     ],
+    #     HISTORY_DATE_INPUT: [
+    #         MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),
+    #         MessageHandler(Filters.text & ~Filters.command, history_date_input),
+    #     ],
+    #     HISTORY_SEARCH_INPUT: [
+    #         MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), history_menu),
+    #         MessageHandler(Filters.text & ~Filters.command, history_search_input),
+    #     ],
+    # },
+    # fallbacks=[],
+    # allow_reentry=True,
+    # )
+    # dp.add_handler(history_conv)
+
+    # dp.add_handler(
+    #     MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), back_to_main_menu)
+    # )
     week_conv = ConversationHandler(
     entry_points=[
         MessageHandler(Filters.regex(rf"^{WEEK_FILL_BUTTON}$"), week_fill_start),
@@ -180,7 +258,9 @@ def build_updater() -> Updater:
     dp.add_handler(MessageHandler(Filters.regex(rf"^{WEEK_VIEW_BUTTON}$"), week_view))
     dp.add_handler(MessageHandler(Filters.regex(rf"^{WEEK_TASK_BUTTON}$"), week_task_show))
     dp.add_handler(MessageHandler(Filters.regex(rf"^{WEEK_REDO_BUTTON}$"), week_redo))
-
+    dp.add_handler(
+        MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), back_to_main_menu)
+    )
         
     logger.info("Handlers registered")
     return updater

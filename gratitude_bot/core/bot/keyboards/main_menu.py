@@ -1,11 +1,17 @@
-from telegram import ReplyKeyboardMarkup
 
+from telegram import ReplyKeyboardMarkup
 
 BACK_BUTTON = "⬅️ Назад в меню"
 
+# Кнопки истории (если ты их импортируешь в bot.py)
+HISTORY_BY_DATE_BUTTON = "Посмотреть ответы за дату"
+HISTORY_PROGRESS_BUTTON = "Посмотреть прогресс"
+HISTORY_SEARCH_BUTTON = "Поиск по записям"
+
+
 def get_main_menu_keyboard():
     """
-    Основое меню
+    Основное меню
     """
     buttons = [
         ["Сегодня", "Утро"],
@@ -13,11 +19,40 @@ def get_main_menu_keyboard():
         ["История"],
         ["Статистика", "Настройки"],
     ]
-
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=False)
 
 
+def get_cancel_keyboard():
+    """
+    Клавиатура с единственной кнопкой "Назад в меню"
+    (используется внутри диалогов/опросников)
+    """
+    return ReplyKeyboardMarkup(
+        [[BACK_BUTTON]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
+def get_today_menu_keyboard():
+    """
+    Меню "Сегодня"
+    """
+    return ReplyKeyboardMarkup(
+        [
+            ["Заполнить утро", "Заполнить вечер"],
+            ["Посмотреть сегодняшние ответы", "Пропустить сегодня"],
+            [BACK_BUTTON],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
+
+
 def get_morning_completed_keyboard():
+    """
+    Когда утро уже заполнено: даём посмотреть или перезаполнить
+    """
     return ReplyKeyboardMarkup(
         [
             ["Посмотреть сегодняшние ответы"],
@@ -29,42 +64,17 @@ def get_morning_completed_keyboard():
     )
 
 
-def get_cancel_keyboard():
-    return ReplyKeyboardMarkup(
-        [[BACK_BUTTON]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
-
-
-def get_today_menu_keyboard():
-    """Пропустить (и спросить “почему?” — опционально)"""
-    return ReplyKeyboardMarkup(
-    [
-        ["Заполнить утро", "Заполнить вечер"],
-        ["Посмотреть сегодняшние ответы", "Пропустить сегодня"],
-    ],
-    resize_keyboard=True,
-    one_time_keyboard=False,
-    )
-
-# WEEK_FILL_BUTTON = "❤️ Заполнить неделю"
-# WEEK_VIEW_BUTTON = "Посмотреть недельные ответы"
-# WEEK_TASK_BUTTON = "Задание недели"
-# WEEK_REDO_BUTTON = "Заполнить неделю заново"
-
 def get_week_menu_keyboard():
     """
-    “Неделя”
-    Задание недели
-    Промежуточный итог
-    Итог недели - ?
-    Выбрать новую неделю (если хотите ручной старт) -? пока нет
+    Меню "Неделя"
     """
     return ReplyKeyboardMarkup(
         [
-            ["Заполнить неделю", "Посмотреть недельные ответы",
-             "Задание недели"],
+            ["Заполнить неделю"],
+            ["Посмотреть недельные ответы"],
+            ["Задание недели"],
+            ["Заполнить неделю заново"],
+            [BACK_BUTTON],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -73,16 +83,14 @@ def get_week_menu_keyboard():
 
 def get_history_menu_keyboard():
     """
-    “История”
-    За дату (выбор: сегодня/вчера/календарь кнопками)
-    За неделю
-    За месяц
-    Последние 10 записей
-    Поиск
+    Меню "История"
     """
     return ReplyKeyboardMarkup(
-       [["Посмотреть ответы за дату"],
-        ["Посмотреть прогресс", "Поиск по записям"]],
+        [
+            [HISTORY_BY_DATE_BUTTON],
+            [HISTORY_PROGRESS_BUTTON, HISTORY_SEARCH_BUTTON],
+            [BACK_BUTTON],
+        ],
         resize_keyboard=True,
         one_time_keyboard=False,
     )
@@ -90,41 +98,30 @@ def get_history_menu_keyboard():
 
 def get_statistics_menu_keyboard():
     """
-    “Статистика”
-    Общая статистика
-    Статистика по утрам
-    Статистика по вечерам
-    Статистика по дням недели
-    ---
-    Стрик
-    График заполнений (просто числа по дням)
-    Частые темы благодарности
-    Экспорт - ?
+    Меню "Статистика"
+    (пока заглушки — ты можешь позже подключить обработчики)
     """
     return ReplyKeyboardMarkup(
         [
-            ["Общая статистика", "График заполнений",
-             "Частые темы благодарности"],
+            ["Общая статистика", "График заполнений", "Частые темы благодарности"],
             ["Статистика по дням недели"],
+            [BACK_BUTTON],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
     )
 
+
 def get_settings_menu_keyboard():
     """
-    “Настройки”
-    Изменить время утреннего напоминания
-    Изменить время вечернего напоминания
-    Изменить день начала недели
-    Уведомления о пропусках
+    Меню "Настройки"
+    (пока заглушки — ты можешь позже подключить обработчики)
     """
     return ReplyKeyboardMarkup(
         [
-            ["Изменить время утреннего напоминания",
-             "Изменить время вечернего напоминания"],
-            ["Изменить день начала недели",
-             "Уведомления о пропусках"],
+            ["Изменить время утреннего напоминания", "Изменить время вечернего напоминания"],
+            ["Изменить день начала недели", "Уведомления о пропусках"],
+            [BACK_BUTTON],
         ],
         resize_keyboard=True,
         one_time_keyboard=False,
@@ -132,6 +129,9 @@ def get_settings_menu_keyboard():
 
 
 def get_schedule_keyboard():
+    """
+    Клавиатура для "напоминаний/спасения стрика"
+    """
     return ReplyKeyboardMarkup(
         [
             ["Спасти стрик"],
@@ -141,14 +141,3 @@ def get_schedule_keyboard():
         resize_keyboard=True,
         one_time_keyboard=True,
     )
-
-# def get_morning_completed_keyboard():
-#     return ReplyKeyboardMarkup(
-#         [
-#             ["Посмотреть сегодняшние ответы"],
-#             ["Заполнить утро заново"],
-#             [BACK_BUTTON],
-#         ],
-#         resize_keyboard=True,
-#         one_time_keyboard=True,
-#     )
