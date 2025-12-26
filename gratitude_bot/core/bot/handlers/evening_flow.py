@@ -1,14 +1,22 @@
-from telegram import Update
-from telegram.ext import CallbackContext
-from telegram.ext import ConversationHandler
+# gratitude_bot/core/bot/handlers/evening_flow.py
 
-from core.bot.keyboards.main_menu import get_cancel_keyboard, get_main_menu_keyboard, BACK_BUTTON
+from telegram import Update, ReplyKeyboardMarkup
+from telegram.ext import CallbackContext, ConversationHandler
+
+from core.bot.keyboards.main_menu import (
+    BACK_BUTTON,
+    get_cancel_keyboard,
+    get_main_menu_keyboard,
+)
 from core.bot.handlers.utils import get_or_create_tg_user, get_or_create_today_entry
-from core.models import Answer
+from core.models import Answer, DailyEntry
 
 
 # Состояния (int)
-EV_GRAT_1, EV_GRAT_2, EV_GRAT_3, EV_BEST, EV_DONE = range(5)
+EV_GRAT_1, EV_GRAT_2, EV_GRAT_3, EV_BEST = range(4)
+
+EVENING_REDO_BUTTON = "Заполнить вечер заново"
+VIEW_TODAY_ANSWERS = "Посмотреть сегодняшние ответы"
 
 
 EVENING_QUESTIONS = [
@@ -19,14 +27,36 @@ EVENING_QUESTIONS = [
 ]
 
 
+def get_evening_completed_keyboard():
+    return ReplyKeyboardMarkup(
+        [
+            [VIEW_TODAY_ANSWERS],
+            [EVENING_REDO_BUTTON],
+            [BACK_BUTTON],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def evening_start(update: Update, context: CallbackContext):
     """
-    Вход в вечерний опросник
+    Вход в вечерний опросник.
+    Если вечер уже заполнен — показываем меню (посмотреть/перезаполнить).
     """
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
 
-    context.user_data["entry_id"] = entry.id
+    # ✅ ВАЖНО: если уже заполнено — не начинаем опросник
+    if entry.completed_evening:
+        update.message.reply_text(
+            "🌙 Вечер на сегодня уже заполнен ✅\n\n"
+            "Хочешь посмотреть ответы или заполнить заново?",
+            reply_markup=get_evening_completed_keyboard(),
+        )
+        return ConversationHandler.END
+
+    context.user_data["evening_entry_id"] = entry.id
     context.user_data["evening_step"] = 0
 
     update.message.reply_text(
@@ -35,66 +65,22 @@ def evening_start(update: Update, context: CallbackContext):
         reply_markup=get_cancel_keyboard(),
     )
 
-    # задаём первый вопрос
-    code, text = EVENING_QUESTIONS[0]
+    # первый вопрос
+    _, text = EVENING_QUESTIONS[0]
     update.message.reply_text(text)
     return EV_GRAT_1
 
 
-def _save_answer(entry_id: int, question_code: str, question_text: str, answer_text: str):
+def _save_answer(entry_id: int, question_text: str, answer_text: str):
     Answer.objects.create(
         daily_entry_id=entry_id,
-        question=None,
+        question=None,  # вечер у тебя сейчас сохраняется без QuestionTemplate
         question_text=question_text,
         answer_text=answer_text.strip(),
     )
 
 
-def evening_handle_answer(update: Update, context: CallbackContext):
-    """
-    Универсальный обработчик ответа на текущий вопрос
-    """
-    entry_id = context.user_data.get("entry_id")
-    step = context.user_data.get("evening_step", 0)
-
-    if not entry_id:
-        update.message.reply_text("Что-то пошло не так. Давай начнём заново.", reply_markup=get_main_menu_keyboard())
-        return ConversationHandler.END
-
-    user_text = (update.message.text or "").strip()
-    if not user_text:
-        update.message.reply_text("Можно коротко, но не пусто 🙂")
-        return _state_by_step(step)
-
-    # сохраняем текущий ответ
-    q_code, q_text = EVENING_QUESTIONS[step]
-    _save_answer(entry_id, q_code, q_text, user_text)
-
-    step += 1
-    context.user_data["evening_step"] = step
-
-    # если вопросы закончились — завершаем
-    if step >= len(EVENING_QUESTIONS):
-        from core.models import DailyEntry
-        DailyEntry.objects.filter(id=entry_id).update(completed_evening=True)
-
-        update.message.reply_text(
-            "✅ Готово! Спасибо.\n\n"
-            "Хочешь — можешь потом посмотреть ответы в «Сегодня» или в «История».",
-            reply_markup=get_main_menu_keyboard(),
-        )
-        return ConversationHandler.END
-
-    # иначе задаём следующий
-    _, next_text = EVENING_QUESTIONS[step]
-    update.message.reply_text(next_text)
-    return _state_by_step(step)
-
-
 def _state_by_step(step: int):
-    """
-    сопоставляем step -> state
-    """
     if step == 0:
         return EV_GRAT_1
     if step == 1:
@@ -104,15 +90,175 @@ def _state_by_step(step: int):
     return EV_BEST
 
 
-def evening_cancel(update: Update, context: CallbackContext):
-    """
-    Отмена/выход по кнопке Назад
-    """
-    context.user_data.pop("entry_id", None)
-    context.user_data.pop("evening_step", None)
+def evening_handle_answer(update: Update, context: CallbackContext):
+    entry_id = context.user_data.get("evening_entry_id")
+    step = context.user_data.get("evening_step", 0)
 
-    update.message.reply_text(
-        "Ок, верну в меню 👇",
-        reply_markup=get_main_menu_keyboard(),
-    )
+    if not entry_id:
+        update.message.reply_text(
+            "Похоже, сессия вечера потерялась. Нажми «Вечер», чтобы начать заново.",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    user_text = (update.message.text or "").strip()
+    if not user_text:
+        update.message.reply_text("Можно коротко, но не пусто 🙂")
+        return _state_by_step(step)
+
+    # сохраняем текущий ответ
+    _, q_text = EVENING_QUESTIONS[step]
+    _save_answer(entry_id, q_text, user_text)
+
+    step += 1
+    context.user_data["evening_step"] = step
+
+    # конец опросника
+    if step >= len(EVENING_QUESTIONS):
+        DailyEntry.objects.filter(id=entry_id).update(completed_evening=True)
+        _clear_evening_context(context)
+
+        update.message.reply_text(
+            "✅ Вечер заполнен. Спасибо 🌙",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    # следующий вопрос
+    _, next_text = EVENING_QUESTIONS[step]
+    update.message.reply_text(next_text)
+    return _state_by_step(step)
+
+
+def evening_redo(update: Update, context: CallbackContext):
+    """
+    Удаляем вечерние ответы за сегодня и запускаем вечер заново.
+    Т.к. question=None, фильтруемся по question_text (там есть '🌙 Вечер' / 'Прекрасные моменты' и т.п.)
+    """
+    user = get_or_create_tg_user(update)
+    entry = get_or_create_today_entry(user)
+
+    # удаляем ответы вечера по точным текстам вопросов
+    evening_texts = [q[1] for q in EVENING_QUESTIONS]
+    Answer.objects.filter(daily_entry=entry, question_text__in=evening_texts).delete()
+
+    DailyEntry.objects.filter(id=entry.id).update(completed_evening=False)
+
+    update.message.reply_text("Ок, заполним заново 🌙")
+    return evening_start(update, context)
+
+
+# def view_today_answers(update: Update, context: CallbackContext):
+#     """
+#     Показываем сегодняшние ответы (утро/вечер/другое).
+#     """
+#     user = get_or_create_tg_user(update)
+#     entry = get_or_create_today_entry(user)
+
+#     answers = Answer.objects.filter(daily_entry=entry).order_by("created_at")
+#     if not answers.exists():
+#         update.message.reply_text(
+#             "Сегодня пока нет ответов.\nНажми «Заполнить утро» или «Заполнить вечер».",
+#             reply_markup=get_main_menu_keyboard(),
+#         )
+#         return ConversationHandler.END
+
+#     morning, evening, other = [], [], []
+
+#     for a in answers:
+#         period = getattr(a.question, "period", None)
+#         if period == "morning":
+#             morning.append(a)
+#         elif period == "evening":
+#             evening.append(a)
+#         else:
+#             # вечер у тебя сохраняется с question=None, поэтому он попадёт сюда.
+#             # распознаем по эмодзи/заголовкам:
+#             qt = (a.question_text or "").lower()
+#             if "🌙" in (a.question_text or "") or "вечер" in qt:
+#                 evening.append(a)
+#             else:
+#                 other.append(a)
+
+#     parts = []
+#     if morning:
+#         parts.append("☀️ Утро:")
+#         for i, a in enumerate(morning, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+
+#     if evening:
+#         parts.append("\n🌙 Вечер:")
+#         for i, a in enumerate(evening, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+
+#     if other:
+#         parts.append("\n📝 Другое:")
+#         for i, a in enumerate(other, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+
+#     update.message.reply_text("\n".join(parts), reply_markup=get_main_menu_keyboard())
+#     return ConversationHandler.END
+def view_today_answers(update: Update, context: CallbackContext):
+    """
+    Показываем сегодняшние ответы (утро/вечер/другое) с вопросами:
+    ❓ question_text
+    → answer_text
+    """
+    user = get_or_create_tg_user(update)
+    entry = get_or_create_today_entry(user)
+
+    answers = Answer.objects.filter(daily_entry=entry).order_by("created_at")
+    if not answers.exists():
+        update.message.reply_text(
+            "Сегодня пока нет ответов.\nНажми «Заполнить утро» или «Заполнить вечер».",
+            reply_markup=get_main_menu_keyboard(),
+        )
+        return ConversationHandler.END
+
+    # Вечерные тексты — чтобы отличать вечер от "другое"
+    evening_texts = {q[1] for q in EVENING_QUESTIONS}
+
+    morning, evening, other = [], [], []
+
+    for a in answers:
+        period = getattr(a.question, "period", None)
+        if period == "morning":
+            morning.append(a)
+            continue
+
+        # вечер: либо period=evening, либо совпало по тексту вопроса
+        if period == "evening" or (a.question_text in evening_texts):
+            evening.append(a)
+        else:
+            other.append(a)
+
+    parts = [f"📅 {entry.date:%d.%m.%Y}\n"]
+
+    if morning:
+        parts.append("☀️ Утро:")
+        for a in morning:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
+
+    if evening:
+        parts.append("\n🌙 Вечер:")
+        for a in evening:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
+
+    if other:
+        parts.append("\n📝 Другое:")
+        for a in other:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
+
+    update.message.reply_text("\n".join(parts), reply_markup=get_main_menu_keyboard())
     return ConversationHandler.END
+
+
+def evening_cancel(update: Update, context: CallbackContext):
+    _clear_evening_context(context)
+    update.message.reply_text("Ок, верну в меню 👇", reply_markup=get_main_menu_keyboard())
+    return ConversationHandler.END
+
+
+def _clear_evening_context(context: CallbackContext):
+    context.user_data.pop("evening_entry_id", None)
+    context.user_data.pop("evening_step", None)

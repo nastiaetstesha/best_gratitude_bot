@@ -1,3 +1,4 @@
+# gratitude_bot/core/bot/handlers/morning_flow.py
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
 
@@ -150,9 +151,58 @@ def morning_redo(update: Update, context: CallbackContext):
     return morning_start(update, context)
 
 
+# def view_today_answers(update: Update, context: CallbackContext):
+#     """
+#     Выводим сегодняшние ответы (утро+вечер), но начнём с утра — как ты просила.
+#     """
+#     user = get_or_create_tg_user(update)
+#     entry = get_or_create_today_entry(user)
+
+#     answers = Answer.objects.filter(daily_entry=entry).order_by("created_at")
+#     if not answers.exists():
+#         update.message.reply_text(
+#             "Сегодня пока нет ответов.\nНажми «Заполнить утро» или «Заполнить вечер».",
+#             reply_markup=get_main_menu_keyboard(),
+#         )
+#         return
+
+#     # сгруппируем простенько: утро / вечер / прочее
+#     morning = []
+#     evening = []
+#     other = []
+
+#     for a in answers:
+#         period = getattr(a.question, "period", None)
+#         if period == "morning":
+#             morning.append(a)
+#         elif period == "evening":
+#             evening.append(a)
+#         else:
+#             other.append(a)
+
+#     parts = []
+#     if morning:
+#         parts.append("☀️ Утро:")
+#         for i, a in enumerate(morning, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+#     if evening:
+#         parts.append("\n🌙 Вечер:")
+#         for i, a in enumerate(evening, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+#     if other:
+#         parts.append("\n📝 Другое:")
+#         for i, a in enumerate(other, 1):
+#             parts.append(f"{i}) {a.answer_text}")
+
+#     update.message.reply_text(
+#         "\n".join(parts),
+#         reply_markup=get_main_menu_keyboard(),
+#     )
 def view_today_answers(update: Update, context: CallbackContext):
     """
-    Выводим сегодняшние ответы (утро+вечер), но начнём с утра — как ты просила.
+    Выводим сегодняшние ответы (утро+вечер) в формате:
+    ❓ вопрос
+    → ответ
     """
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
@@ -165,39 +215,44 @@ def view_today_answers(update: Update, context: CallbackContext):
         )
         return
 
-    # сгруппируем простенько: утро / вечер / прочее
+    # Группировка: утро/вечер/другое
     morning = []
     evening = []
     other = []
 
     for a in answers:
         period = getattr(a.question, "period", None)
+
         if period == "morning":
             morning.append(a)
-        elif period == "evening":
+            continue
+
+        # вечер у тебя часто question=None, распознаём по question_text
+        qt = (a.question_text or "").lower()
+        if "🌙" in (a.question_text or "") or "вечер" in qt or "благодар" in qt:
             evening.append(a)
         else:
             other.append(a)
 
-    parts = []
+    parts = [f"📅 {entry.date:%d.%m.%Y}\n"]
+
     if morning:
         parts.append("☀️ Утро:")
-        for i, a in enumerate(morning, 1):
-            parts.append(f"{i}) {a.answer_text}")
+        for a in morning:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
+
     if evening:
         parts.append("\n🌙 Вечер:")
-        for i, a in enumerate(evening, 1):
-            parts.append(f"{i}) {a.answer_text}")
+        for a in evening:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
+
     if other:
         parts.append("\n📝 Другое:")
-        for i, a in enumerate(other, 1):
-            parts.append(f"{i}) {a.answer_text}")
+        for a in other:
+            parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
 
-    update.message.reply_text(
-        "\n".join(parts),
-        reply_markup=get_main_menu_keyboard(),
-    )
-
+    update.message.reply_text("\n".join(parts), reply_markup=get_main_menu_keyboard())
+    return ConversationHandler.END
 
 def _clear_morning_context(context: CallbackContext):
     context.user_data.pop("morning_entry_id", None)
