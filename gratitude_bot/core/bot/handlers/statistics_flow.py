@@ -13,7 +13,7 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 
 from core.models import DailyEntry, Answer, WeeklyCycle, QuestionTemplate, StreakState
-from core.bot.handlers.utils import get_or_create_tg_user
+from core.bot.handlers.utils import get_or_create_tg_user, user_local_date
 from core.bot.keyboards.main_menu import (
     BACK_BUTTON,
     get_main_menu_keyboard,
@@ -68,7 +68,7 @@ def statistics_cancel(update: Update, context: CallbackContext):
 # -------------------- handlers for menu buttons --------------------
 def statistics_general(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
-    today = timezone.localdate()
+    today = user_local_date(user)
 
     # За всё время
     all_entries = DailyEntry.objects.filter(user=user)
@@ -117,7 +117,7 @@ def statistics_general(update: Update, context: CallbackContext):
 
 def statistics_fill_chart(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
-    today = timezone.localdate()
+    today = user_local_date(user)
     start = today - timedelta(days=13)
 
     entries = {
@@ -161,7 +161,7 @@ def statistics_weekdays(update: Update, context: CallbackContext):
     - сколько заполнено частично/полностью
     """
     user = get_or_create_tg_user(update)
-    today = timezone.localdate()
+    today = user_local_date(user)
     start = today - timedelta(days=55)
 
     qs = DailyEntry.objects.filter(user=user, date__gte=start, date__lte=today)
@@ -203,7 +203,7 @@ def statistics_topics(update: Update, context: CallbackContext):
     - показываем топ-10
     """
     user = get_or_create_tg_user(update)
-    today = timezone.localdate()
+    today = user_local_date(user)
     start = today - timedelta(days=30)  # последние 31 день
 
     answers = (

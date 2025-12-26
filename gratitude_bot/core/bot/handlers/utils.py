@@ -1,4 +1,7 @@
+# gratitude_bot/core/bot/handlers/utils.py
+
 from datetime import date, timedelta
+from turtle import update
 
 from django.utils import timezone
 
@@ -6,6 +9,11 @@ from core.models import (
     TelegramUser, DailyEntry, QuestionTemplate, UserSettings,
     WeeklyCycle, WeeklyTask,
 )
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+import re
+from datetime import timezone as dt_timezone, timedelta
+
 
 
 def get_or_create_tg_user(update) -> TelegramUser:
@@ -44,7 +52,7 @@ def get_user_settings(user: TelegramUser) -> UserSettings:
 
 
 def get_or_create_today_entry(user: TelegramUser) -> DailyEntry:
-    today = timezone.localdate()
+    today = user_local_date(user)
     entry, _ = DailyEntry.objects.get_or_create(user=user, date=today)
     return entry
 
@@ -85,7 +93,9 @@ def get_week_start_for_user(today: date, week_start_iso: int) -> date:
 
 def get_or_create_current_week_cycle(user: TelegramUser, today: date | None = None) -> WeeklyCycle:
     if today is None:
-        today = date.today()
+        user = get_or_create_tg_user(update)
+        today = user_local_date(user)
+
 
     settings = get_user_settings(user)
     week_start = get_week_start_for_user(today, settings.week_start)
@@ -115,3 +125,66 @@ def get_or_create_current_week_cycle(user: TelegramUser, today: date | None = No
             cycle.save(update_fields=["task"])
 
     return cycle
+
+
+# --- timezone helpers for "user local date/time" ---
+
+
+
+_UTC_OFFSET_RE = re.compile(r"^UTC(?:(?P<sign>[+-])(?P<h>\d{1,2})(?::(?P<m>\d{2}))?)?$")
+
+
+def parse_user_timezone(tz_value: str):
+    """
+    Поддерживаем:
+    - "UTC"
+    - "UTC+3", "UTC-9", "UTC+9:30"
+    - IANA: "Europe/Moscow", "Europe/Nicosia", ...
+    Возвращает tzinfo.
+    """
+    tz_value = (tz_value or "").strip()
+    if not tz_value:
+        return ZoneInfo("UTC")
+
+    m = _UTC_OFFSET_RE.match(tz_value)
+    if m:
+        sign = m.group("sign")
+        if not sign:
+            return dt_timezone.utc
+
+        hours = int(m.group("h"))
+        minutes = int(m.group("m") or 0)
+        if hours > 14 or minutes not in (0, 15, 30, 45):
+            # чуть строже, чтобы не было мусора
+            return dt_timezone.utc
+
+        delta = timedelta(hours=hours, minutes=minutes)
+        if sign == "-":
+            delta = -delta
+        return dt_timezone(delta)
+
+    # IANA
+    try:
+        return ZoneInfo(tz_value)
+    except Exception:
+        return ZoneInfo("UTC")
+
+
+def get_user_tz(user: TelegramUser):
+    settings = UserSettings.objects.get_or_create(user=user)[0]
+    return parse_user_timezone(getattr(settings, "timezone", "UTC"))
+
+
+def user_local_now(user: TelegramUser):
+    """
+    timezone-aware datetime "сейчас" в часовом поясе пользователя.
+    """
+    tz = get_user_tz(user)
+    return timezone.now().astimezone(tz)
+
+
+def user_local_date(user: TelegramUser):
+    """
+    date "сегодня" в часовом поясе пользователя.
+    """
+    return user_local_now(user).date()

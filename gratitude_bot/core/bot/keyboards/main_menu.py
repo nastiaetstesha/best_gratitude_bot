@@ -1,27 +1,32 @@
+# gratitude_bot/core/bot/keyboards/main_menu.py
 
 from telegram import ReplyKeyboardMarkup
 
 BACK_BUTTON = "⬅️ Назад в меню"
 
-# Кнопки истории (если ты их импортируешь в bot.py)
+# --- History buttons ---
 HISTORY_BY_DATE_BUTTON = "Посмотреть ответы за дату"
 HISTORY_PROGRESS_BUTTON = "Посмотреть прогресс"
 HISTORY_SEARCH_BUTTON = "Поиск по записям"
 
-HISTORY_BY_DATE_BUTTON = "Посмотреть ответы за дату"
-HISTORY_PROGRESS_BUTTON = "Посмотреть прогресс"
-HISTORY_SEARCH_BUTTON = "Поиск по записям"
-
+# --- Statistics buttons ---
 STATS_GENERAL_BUTTON = "Общая статистика"
 STATS_CHART_BUTTON = "График заполнений"
 STATS_TOPICS_BUTTON = "Частые темы благодарности"
 STATS_WEEKDAYS_BUTTON = "Статистика по дням недели"
 
+# --- Settings buttons (вариант с тумблерами “вкл/выкл” в одном тексте) ---
+SET_TZ_BUTTON = "Часовой пояс"
+SET_MORNING_TIME_BUTTON = "Время утреннего напоминания"
+SET_EVENING_TIME_BUTTON = "Время вечернего напоминания"
+SET_WEEK_START_BUTTON = "День начала недели"
+
+TOGGLE_MORNING_BUTTON = "Утренние напоминания: вкл/выкл"
+TOGGLE_EVENING_BUTTON = "Вечерние напоминания: вкл/выкл"
+TOGGLE_MISSED_BUTTON = "Уведомления о пропусках: вкл/выкл"
+
 
 def get_main_menu_keyboard():
-    """
-    Основное меню
-    """
     buttons = [
         ["Сегодня", "Утро"],
         ["Вечер", "Неделя"],
@@ -32,21 +37,10 @@ def get_main_menu_keyboard():
 
 
 def get_cancel_keyboard():
-    """
-    Клавиатура с единственной кнопкой "Назад в меню"
-    (используется внутри диалогов/опросников)
-    """
-    return ReplyKeyboardMarkup(
-        [[BACK_BUTTON]],
-        resize_keyboard=True,
-        one_time_keyboard=True,
-    )
+    return ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True, one_time_keyboard=True)
 
 
 def get_today_menu_keyboard():
-    """
-    Меню "Сегодня"
-    """
     return ReplyKeyboardMarkup(
         [
             ["Заполнить утро", "Заполнить вечер"],
@@ -59,9 +53,6 @@ def get_today_menu_keyboard():
 
 
 def get_morning_completed_keyboard():
-    """
-    Когда утро уже заполнено: даём посмотреть или перезаполнить
-    """
     return ReplyKeyboardMarkup(
         [
             ["Посмотреть сегодняшние ответы"],
@@ -74,9 +65,6 @@ def get_morning_completed_keyboard():
 
 
 def get_week_menu_keyboard():
-    """
-    Меню "Неделя"
-    """
     return ReplyKeyboardMarkup(
         [
             ["Заполнить неделю"],
@@ -91,9 +79,6 @@ def get_week_menu_keyboard():
 
 
 def get_history_menu_keyboard():
-    """
-    Меню "История"
-    """
     return ReplyKeyboardMarkup(
         [
             [HISTORY_BY_DATE_BUTTON],
@@ -106,14 +91,11 @@ def get_history_menu_keyboard():
 
 
 def get_statistics_menu_keyboard():
-    """
-    Меню "Статистика"
-    (пока заглушки — ты можешь позже подключить обработчики)
-    """
     return ReplyKeyboardMarkup(
         [
-            ["Общая статистика", "График заполнений", "Частые темы благодарности"],
-            ["Статистика по дням недели"],
+            [STATS_GENERAL_BUTTON, STATS_CHART_BUTTON],
+            [STATS_TOPICS_BUTTON],
+            [STATS_WEEKDAYS_BUTTON],
             [BACK_BUTTON],
         ],
         resize_keyboard=True,
@@ -122,14 +104,13 @@ def get_statistics_menu_keyboard():
 
 
 def get_settings_menu_keyboard():
-    """
-    Меню "Настройки"
-    (пока заглушки — ты можешь позже подключить обработчики)
-    """
     return ReplyKeyboardMarkup(
         [
-            ["Изменить время утреннего напоминания", "Изменить время вечернего напоминания"],
-            ["Изменить день начала недели", "Уведомления о пропусках"],
+            [SET_TZ_BUTTON],
+            [SET_MORNING_TIME_BUTTON, SET_EVENING_TIME_BUTTON],
+            [TOGGLE_MORNING_BUTTON, TOGGLE_EVENING_BUTTON],
+            [TOGGLE_MISSED_BUTTON],
+            [SET_WEEK_START_BUTTON],
             [BACK_BUTTON],
         ],
         resize_keyboard=True,
@@ -138,9 +119,6 @@ def get_settings_menu_keyboard():
 
 
 def get_schedule_keyboard():
-    """
-    Клавиатура для "напоминаний/спасения стрика"
-    """
     return ReplyKeyboardMarkup(
         [
             ["Спасти стрик"],

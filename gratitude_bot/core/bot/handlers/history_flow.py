@@ -11,7 +11,7 @@ from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 
 from core.models import DailyEntry, Answer, WeeklyCycle, QuestionTemplate
-from core.bot.handlers.utils import get_or_create_tg_user
+from core.bot.handlers.utils import get_or_create_tg_user, user_local_date
 from core.bot.keyboards.main_menu import (
     get_main_menu_keyboard,
     BACK_BUTTON,
@@ -139,7 +139,9 @@ def history_date_choose(update: Update, context: CallbackContext):
     if text == BACK_BUTTON:
         return history_menu(update, context)
 
-    today = timezone.localdate()
+    user = get_or_create_tg_user(update)
+    today = user_local_date(user)
+
 
     if text == "Сегодня":
         return _show_for_date(update, context, today)
@@ -155,7 +157,7 @@ def history_date_choose(update: Update, context: CallbackContext):
         )
         return HISTORY_DATE_INPUT
 
-    update.message.reply_text("Не поняла выбор. Нажми кнопку 👇", reply_markup=get_date_choose_keyboard())
+    update.message.reply_text("Не понял выбор. Нажми кнопку 👇", reply_markup=get_date_choose_keyboard())
     return HISTORY_DATE_CHOOSE
 
 
@@ -182,7 +184,7 @@ def history_progress(update: Update, context: CallbackContext):
     - завершенные недели за 8 недель
     """
     user = get_or_create_tg_user(update)
-    today = timezone.localdate()
+    today = user_local_date(user)
 
     # дневной прогресс
     start = today - timedelta(days=13)
@@ -241,7 +243,7 @@ def history_search_input(update: Update, context: CallbackContext):
     )
 
     if not answers:
-        update.message.reply_text(f'Ничего не нашла по запросу: “{text}”.', reply_markup=get_history_menu_keyboard())
+        update.message.reply_text(f'Ничего не нашел по запросу: “{text}”.', reply_markup=get_history_menu_keyboard())
         return HISTORY_MENU
 
     lines = [f'🔎 Результаты по запросу: “{text}” (последние 10)\n']

@@ -14,13 +14,6 @@ from telegram.ext import (
 from telegram.ext import MessageHandler, Filters, CommandHandler
 
 from core.bot.handlers.common import start, back_to_main_menu, today_menu
-# from core.bot.handlers.morning import morning_start
-# from core.bot.handlers.evening import evening_start
-# from core.bot.handlers.week import week_menu
-# from core.bot.handlers.history import history_menu
-# from core.bot.handlers.statistics import statistics_menu
-# from core.bot.handlers.settings import settings_menu
-from core.bot.keyboards.main_menu import BACK_BUTTON
 from telegram.ext import ConversationHandler
 
 from telegram.ext import ConversationHandler
@@ -35,8 +28,6 @@ from core.bot.handlers.morning_flow import (
     MORNING_REDO_BUTTON,
     VIEW_TODAY_ANSWERS,
 )
-from core.bot.keyboards.main_menu import BACK_BUTTON
-
 
 from core.bot.handlers.evening_flow import (
     evening_start,
@@ -64,7 +55,6 @@ from core.bot.handlers.week_flow import (
     WEEK_FINAL,
 )
 
-from core.bot.keyboards.main_menu import BACK_BUTTON, get_main_menu_keyboard
 from core.bot.handlers.history_flow import (
     history_menu,
     history_by_date_start,
@@ -97,8 +87,56 @@ from core.bot.handlers.statistics_flow import (
     STATS_TOPICS_BUTTON,
     STATS_WEEKDAYS_BUTTON,
 )
+from core.bot.handlers.settings_flow import (
+    settings_menu,
+    settings_cancel,
+    # settings_morning_time_save,
+    # settings_evening_time_start,
+    # settings_evening_time_save,
+    # settings_week_start,
+    # settings_week_start_save,
+    # settings_notify_toggle,
+    SETTINGS_MENU,
+    # SETTINGS_MORNING_TIME,
+    # SETTINGS_EVENING_TIME,
+    # SETTINGS_WEEK_START,
+)
+from core.bot.handlers.settings_flow import (
+    settings_menu,
+    settings_cancel,
+    timezone_start,
+    timezone_choose,
+    timezone_input,
+    set_morning_time_start,
+    set_morning_time_input,
+    set_evening_time_start,
+    set_evening_time_input,
+    set_week_start_start,
+    set_week_start_choose,
+    toggle_morning,
+    toggle_evening,
+    toggle_missed,
+    SETTINGS_MENU,
+    SETTINGS_TZ_CHOOSE,
+    SETTINGS_TZ_INPUT,
+    SETTINGS_MORNING_TIME_INPUT,
+    SETTINGS_EVENING_TIME_INPUT,
+    SETTINGS_WEEK_START_CHOOSE,
+)
 
+from core.bot.handlers.settings_flow import (
+    SET_TZ_BUTTON,
+    SET_MORNING_TIME_BUTTON,
+    SET_EVENING_TIME_BUTTON,
+    SET_WEEK_START_BUTTON,
+    TOGGLE_MORNING_BUTTON,
+    TOGGLE_EVENING_BUTTON,
+    TOGGLE_MISSED_BUTTON,
+)
 
+from core.bot.keyboards.main_menu import (
+    BACK_BUTTON,
+)
 logger = logging.getLogger(__name__)
 
 
@@ -181,7 +219,47 @@ def build_updater() -> Updater:
     )
     dp.add_handler(stats_conv)
 
-    # dp.add_handler(MessageHandler(Filters.regex(r"^Настройки$"), settings_menu))
+    settings_conv = ConversationHandler(
+    entry_points=[
+        MessageHandler(Filters.regex(r"^Настройки$"), settings_menu),
+    ],
+    states={
+        SETTINGS_MENU: [
+            MessageHandler(Filters.regex(rf"^{BACK_BUTTON}$"), settings_cancel),
+
+            MessageHandler(Filters.regex(rf"^{SET_TZ_BUTTON}$"), timezone_start),
+
+            MessageHandler(Filters.regex(rf"^{SET_MORNING_TIME_BUTTON}$"), set_morning_time_start),
+            MessageHandler(Filters.regex(rf"^{SET_EVENING_TIME_BUTTON}$"), set_evening_time_start),
+
+            MessageHandler(Filters.regex(rf"^{SET_WEEK_START_BUTTON}$"), set_week_start_start),
+
+            MessageHandler(Filters.regex(rf"^{TOGGLE_MORNING_BUTTON}$"), toggle_morning),
+            MessageHandler(Filters.regex(rf"^{TOGGLE_EVENING_BUTTON}$"), toggle_evening),
+            MessageHandler(Filters.regex(rf"^{TOGGLE_MISSED_BUTTON}$"), toggle_missed),
+        ],
+        SETTINGS_TZ_CHOOSE: [
+            MessageHandler(Filters.text & ~Filters.command, timezone_choose),
+        ],
+        SETTINGS_TZ_INPUT: [
+            MessageHandler(Filters.text & ~Filters.command, timezone_input),
+        ],
+        SETTINGS_MORNING_TIME_INPUT: [
+            MessageHandler(Filters.text & ~Filters.command, set_morning_time_input),
+        ],
+        SETTINGS_EVENING_TIME_INPUT: [
+            MessageHandler(Filters.text & ~Filters.command, set_evening_time_input),
+        ],
+        SETTINGS_WEEK_START_CHOOSE: [
+            MessageHandler(Filters.text & ~Filters.command, set_week_start_choose),
+        ],
+    },
+    fallbacks=[],
+    allow_reentry=True,
+    )
+
+    dp.add_handler(settings_conv)
+
     morning_conv = ConversationHandler(
     entry_points=[
         MessageHandler(Filters.regex(r"^Утро$"), morning_start),

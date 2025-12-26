@@ -4,6 +4,7 @@ from telegram.ext import CallbackContext, ConversationHandler
 from core.bot.handlers.utils import (
     get_or_create_tg_user,
     get_or_create_current_week_cycle,
+    user_local_date,
 )
 from core.bot.keyboards.main_menu import (
     get_main_menu_keyboard,
@@ -41,7 +42,8 @@ def week_fill_start(update: Update, context: CallbackContext):
     Старт заполнения недели. Спрашиваем mid_reflection, потом final_reflection.
     """
     user = get_or_create_tg_user(update)
-    cycle = get_or_create_current_week_cycle(user)
+    cycle = get_or_create_current_week_cycle(user, today=user_local_date(user))
+
 
     # если уже заполнено — предложим посмотреть/перезаполнить
     if cycle.is_completed:
@@ -135,7 +137,8 @@ def week_cancel(update: Update, context: CallbackContext):
 
 def week_view(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
-    cycle = get_or_create_current_week_cycle(user)
+    cycle = get_or_create_current_week_cycle(user, today=user_local_date(user))
+
 
     header = f"🗓️ Неделя: {cycle.week_start:%d.%m} — {cycle.week_end:%d.%m}\n"
 
@@ -163,7 +166,8 @@ def week_menu(update: Update, context: CallbackContext):
 
 def week_task_show(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
-    cycle = get_or_create_current_week_cycle(user)
+    cycle = get_or_create_current_week_cycle(user, today=user_local_date(user))
+
 
     if not cycle.task:
         update.message.reply_text(
@@ -183,7 +187,8 @@ def week_task_show(update: Update, context: CallbackContext):
 
 def week_redo(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
-    cycle = get_or_create_current_week_cycle(user)
+    cycle = get_or_create_current_week_cycle(user, today=user_local_date(user))
+
 
     cycle.mid_reflection = ""
     cycle.final_reflection = ""
