@@ -2,10 +2,9 @@
 from __future__ import annotations
 
 import re
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from django.db.models import Q
-from django.utils import timezone
 
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
@@ -27,16 +26,21 @@ HISTORY_DATE_INPUT = 303
 HISTORY_SEARCH_INPUT = 304
 
 _NUM_PREFIX_RE = re.compile(r"^\s*\d+\)\s*")
+_DATE_RE = re.compile(r"^\s*(\d{2})\.(\d{2})\.(\d{4})\s*$")
+
+
+def _parse_date_ddmmyyyy(text: str) -> date | None:
+    m = _DATE_RE.match(text or "")
+    if not m:
+        return None
+    try:
+        return datetime.strptime(m.group(0).strip(), "%d.%m.%Y").date()
+    except ValueError:
+        return None
 
 
 # ---------- text helpers ----------
 def _clean_question_text(text: str) -> str:
-    """
-    Приводим вопрос к нормальному виду, чтобы не было:
-    - "1) ☀️ Утро" (двойной нумерации)
-    - "☀️ Утро" как единственной строки вместо вопроса
-    - пустых строк и мусора
-    """
     text = (text or "").strip()
     if not text:
         return "—"
@@ -45,7 +49,6 @@ def _clean_question_text(text: str) -> str:
     if not lines:
         return "—"
 
-    # Если первая строка — это заголовок блока, а вопрос ниже — берём следующую
     if len(lines) >= 2 and lines[0] in ("☀️ Утро", "🌙 Вечер", "🗓️ Неделя", "Неделя"):
         candidate = lines[1]
     else:
@@ -56,13 +59,12 @@ def _clean_question_text(text: str) -> str:
 
 
 def _infer_period(answer: Answer) -> str:
-    """
-    Период ответа:
-    - если есть связанный шаблон — используем его
-    - иначе пытаемся угадать по question_text
-    """
     period = getattr(answer.question, "period", None)
-    if period in (QuestionTemplate.PERIOD_MORNING, QuestionTemplate.PERIOD_EVENING, QuestionTemplate.PERIOD_WEEKLY):
+    if period in (
+        QuestionTemplate.PERIOD_MORNING,
+        QuestionTemplate.PERIOD_EVENING,
+        QuestionTemplate.PERIOD_WEEKLY,
+    ):
         return period
 
     qt = (answer.question_text or "").lower()
@@ -77,7 +79,6 @@ def _infer_period(answer: Answer) -> str:
 def _format_answers_block(title: str, answers: list[Answer]) -> str:
     if not answers:
         return ""
-
     parts = [title]
     for a in answers:
         q = _clean_question_text(a.question_text)
@@ -111,6 +112,11 @@ def get_date_choose_keyboard():
     )
 
 
+def get_date_input_keyboard():
+    # в режиме ввода даты оставим минимум, чтобы не “ломать” state случайными кнопками
+    return ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True, one_time_keyboard=False)
+
+
 # ---------- entry ----------
 def history_menu(update: Update, context: CallbackContext):
     update.message.reply_text(
@@ -133,31 +139,71 @@ def history_by_date_start(update: Update, context: CallbackContext):
     return HISTORY_DATE_CHOOSE
 
 
+def history_show_by_date(update: Update, context: CallbackContext, picked_date: date):
+    """
+    ЕДИНАЯ функция показа ответов за дату.
+    Важно: после показа ВСЕГДА возвращаем HISTORY_DATE_CHOOSE и снова показываем клавиатуру.
+    """
+    user = get_or_create_tg_user(update)
+
+    parts: list[str] = [f"📅 {picked_date:%d.%m.%Y}\n"]
+
+    entry = DailyEntry.objects.filter(user=user, date=picked_date).first()
+    if entry:
+        parts.append(_format_daily_entry(entry))
+    else:
+        parts.append(f"За {picked_date:%d.%m.%Y} записей нет.")
+
+    cycle = (
+        WeeklyCycle.objects.filter(user=user, week_start__lte=picked_date, week_end__gte=picked_date)
+        .select_related("task")
+        .first()
+    )
+    if cycle:
+        parts.append("")
+        parts.append(_format_weekly_cycle(cycle))
+
+    update.message.reply_text("\n".join(parts))
+
+    # ✅ всегда возвращаем в CHOOSE
+    update.message.reply_text("Выбери дату 👇", reply_markup=get_date_choose_keyboard())
+    return HISTORY_DATE_CHOOSE
+
+
 def history_date_choose(update: Update, context: CallbackContext):
     text = (update.message.text or "").strip()
 
     if text == BACK_BUTTON:
         return history_menu(update, context)
 
+    # если человек случайно нажал “Посмотреть ответы за дату” уже находясь в выборе — просто остаёмся тут
+    if text == HISTORY_BY_DATE_BUTTON:
+        update.message.reply_text("Выбери дату 👇", reply_markup=get_date_choose_keyboard())
+        return HISTORY_DATE_CHOOSE
+
     user = get_or_create_tg_user(update)
     today = user_local_date(user)
 
-
     if text == "Сегодня":
-        return _show_for_date(update, context, today)
+        return history_show_by_date(update, context, today)
     if text == "Вчера":
-        return _show_for_date(update, context, today - timedelta(days=1))
+        return history_show_by_date(update, context, today - timedelta(days=1))
     if text == "Позавчера":
-        return _show_for_date(update, context, today - timedelta(days=2))
+        return history_show_by_date(update, context, today - timedelta(days=2))
 
     if text == "Ввести дату (ДД.ММ.ГГГГ)":
         update.message.reply_text(
             "Напиши дату в формате ДД.ММ.ГГГГ (например 25.12.2025).",
-            reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True),
+            reply_markup=get_date_input_keyboard(),
         )
         return HISTORY_DATE_INPUT
 
-    update.message.reply_text("Не понял выбор. Нажми кнопку 👇", reply_markup=get_date_choose_keyboard())
+    # ✅ если пользователь ввёл дату вручную прямо в этом состоянии — принимаем
+    picked = _parse_date_ddmmyyyy(text)
+    if picked:
+        return history_show_by_date(update, context, picked)
+
+    update.message.reply_text("Не поняла выбор. Нажми кнопку 👇", reply_markup=get_date_choose_keyboard())
     return HISTORY_DATE_CHOOSE
 
 
@@ -165,40 +211,40 @@ def history_date_input(update: Update, context: CallbackContext):
     text = (update.message.text or "").strip()
 
     if text == BACK_BUTTON:
-        return history_menu(update, context)
+        return history_by_date_start(update, context)
 
-    try:
-        d = _parse_ru_date(text)
-    except ValueError:
-        update.message.reply_text("Не похоже на дату. Пример: 25.12.2025")
+    # на всякий: если в INPUT прилетели “Сегодня/Вчера/Позавчера”
+    user = get_or_create_tg_user(update)
+    today = user_local_date(user)
+    if text == "Сегодня":
+        return history_show_by_date(update, context, today)
+    if text == "Вчера":
+        return history_show_by_date(update, context, today - timedelta(days=1))
+    if text == "Позавчера":
+        return history_show_by_date(update, context, today - timedelta(days=2))
+
+    picked = _parse_date_ddmmyyyy(text)
+    if not picked:
+        update.message.reply_text("Не похоже на дату. Пример: 25.12.2025", reply_markup=get_date_input_keyboard())
         return HISTORY_DATE_INPUT
 
-    return _show_for_date(update, context, d)
+    return history_show_by_date(update, context, picked)
 
 
 # ---------- progress ----------
 def history_progress(update: Update, context: CallbackContext):
-    """
-    Прогресс:
-    - дни (утро или вечер заполнены) за 14 дней
-    - завершенные недели за 8 недель
-    """
     user = get_or_create_tg_user(update)
     today = user_local_date(user)
 
-    # дневной прогресс
     start = today - timedelta(days=13)
     entries = (
-        DailyEntry.objects
-        .filter(user=user, date__gte=start, date__lte=today)
+        DailyEntry.objects.filter(user=user, date__gte=start, date__lte=today)
         .order_by("date")
     )
     filled_days = sum(1 for e in entries if e.completed_morning or e.completed_evening)
 
-    # недельный прогресс
     cycles = (
-        WeeklyCycle.objects
-        .filter(user=user, week_start__gte=today - timedelta(weeks=8))
+        WeeklyCycle.objects.filter(user=user, week_start__gte=today - timedelta(weeks=8))
         .order_by("-week_start")
     )
     completed_weeks = sum(1 for c in cycles if c.is_completed)
@@ -217,7 +263,7 @@ def history_search_start(update: Update, context: CallbackContext):
     update.message.reply_text(
         "🔎 Напиши слово/фразу для поиска по ответам.\n"
         'Например: “мама”, “работа”, “страх”, “море”.',
-        reply_markup=ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True),
+        reply_markup=get_date_input_keyboard(),
     )
     return HISTORY_SEARCH_INPUT
 
@@ -229,21 +275,20 @@ def history_search_input(update: Update, context: CallbackContext):
         return history_menu(update, context)
 
     if not text:
-        update.message.reply_text("Напиши слово/фразу 🙂")
+        update.message.reply_text("Напиши слово/фразу 🙂", reply_markup=get_date_input_keyboard())
         return HISTORY_SEARCH_INPUT
 
     user = get_or_create_tg_user(update)
 
     answers = (
-        Answer.objects
-        .filter(daily_entry__user=user)
+        Answer.objects.filter(daily_entry__user=user)
         .filter(Q(answer_text__icontains=text) | Q(question_text__icontains=text))
         .select_related("daily_entry", "question")
         .order_by("-daily_entry__date", "-created_at")[:10]
     )
 
     if not answers:
-        update.message.reply_text(f'Ничего не нашел по запросу: “{text}”.', reply_markup=get_history_menu_keyboard())
+        update.message.reply_text(f'Ничего не нашла по запросу: “{text}”.', reply_markup=get_history_menu_keyboard())
         return HISTORY_MENU
 
     lines = [f'🔎 Результаты по запросу: “{text}” (последние 10)\n']
@@ -257,50 +302,10 @@ def history_search_input(update: Update, context: CallbackContext):
     return HISTORY_MENU
 
 
-# ---------- helpers ----------
-def _parse_ru_date(s: str) -> date:
-    # "ДД.ММ.ГГГГ"
-    parts = s.split(".")
-    if len(parts) != 3:
-        raise ValueError("bad date")
-    dd, mm, yy = [int(x) for x in parts]
-    return date(yy, mm, dd)
-
-
-def _show_for_date(update: Update, context: CallbackContext, d: date):
-    user = get_or_create_tg_user(update)
-
-    parts: list[str] = [f"📅 {d:%d.%m.%Y}\n"]
-
-    entry = DailyEntry.objects.filter(user=user, date=d).first()
-    if entry:
-        parts.append(_format_daily_entry(entry))
-    else:
-        parts.append(f"За {d:%d.%m.%Y} записей нет.")
-
-    # Добавим недельный цикл, куда попадает дата
-    cycle = (
-        WeeklyCycle.objects
-        .filter(user=user, week_start__lte=d, week_end__gte=d)
-        .select_related("task")
-        .first()
-    )
-    if cycle:
-        parts.append("")
-        parts.append(_format_weekly_cycle(cycle))
-
-    update.message.reply_text("\n".join(parts), reply_markup=get_history_menu_keyboard())
-    return HISTORY_MENU
-
-
+# ---------- formatting helpers ----------
 def _format_daily_entry(entry: DailyEntry) -> str:
-    """
-    Показываем ответы с вопросами.
-    Группируем по period, но вопросы показываем «чисто», без двойной нумерации.
-    """
     answers = (
-        Answer.objects
-        .filter(daily_entry=entry)
+        Answer.objects.filter(daily_entry=entry)
         .select_related("question")
         .order_by("created_at")
     )
@@ -332,7 +337,6 @@ def _format_daily_entry(entry: DailyEntry) -> str:
 def _format_weekly_cycle(cycle: WeeklyCycle) -> str:
     header = f"🗓️ Неделя: {cycle.week_start:%d.%m} — {cycle.week_end:%d.%m}"
 
-    # ВАЖНО: если задание выключили (is_active=False), не показываем его пользователю.
     task_text = ""
     if cycle.task and getattr(cycle.task, "is_active", True):
         task_text = f"\n🎯 Задание недели: {cycle.task.title}\n{cycle.task.description}"
