@@ -1,3 +1,4 @@
+# gratitude_bot/core/management/commands/run_bot.py
 from django.core.management.base import BaseCommand
 
 from core.bot.bot import build_updater

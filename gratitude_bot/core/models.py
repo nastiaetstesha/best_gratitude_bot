@@ -1,3 +1,4 @@
+# gratitude_bot/core/models.py
 from datetime import time
 
 from django.db import models

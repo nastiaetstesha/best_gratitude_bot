@@ -14,6 +14,7 @@ from core.bot.keyboards.main_menu import (
     BACK_BUTTON,
 )
 from core.models import Answer, DailyEntry
+from core.services.streak import update_streak_on_activity
 
 
 # Состояние одно: мы всегда принимаем текст и двигаем шаги сами
@@ -96,8 +97,11 @@ def morning_handle_answer(update: Update, context: CallbackContext):
     # конец опросника
     if step >= len(q_ids):
         DailyEntry.objects.filter(id=entry_id).update(completed_morning=True)
+        # ✅ стрик: мягко — день засчитан, если заполнено хоть что-то
+        entry = DailyEntry.objects.get(id=entry_id)
+        user = get_or_create_tg_user(update)
+        update_streak_on_activity(user, entry.date)
 
-        # чистим user_data
         _clear_morning_context(context)
 
         update.message.reply_text(
@@ -105,6 +109,14 @@ def morning_handle_answer(update: Update, context: CallbackContext):
             reply_markup=get_main_menu_keyboard(),
         )
         return ConversationHandler.END
+        # чистим user_data
+        # _clear_morning_context(context)
+
+        # update.message.reply_text(
+        #     "✅ Утро заполнено. Хорошего дня 🌿",
+        #     reply_markup=get_main_menu_keyboard(),
+        # )
+        # return ConversationHandler.END
 
     # следующий вопрос
     from core.models import QuestionTemplate

@@ -1,3 +1,4 @@
+# gratitude_bot/core/bot/bot.py
 import os
 import logging
 
