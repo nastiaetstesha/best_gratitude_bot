@@ -10,14 +10,25 @@ from django.conf import settings as dj_settings
 from telegram import Bot
 
 from core.models import UserSettings, DailyEntry
+import logging
+logger = logging.getLogger(__name__)
 
 
+# def _send_tg(chat_id: int, text: str) -> None:
+#     token = getattr(dj_settings, "TELEGRAM_BOT_TOKEN", None)
+#     if not token:
+#         return
+#     Bot(token=token).send_message(chat_id=chat_id, text=text)
 def _send_tg(chat_id: int, text: str) -> None:
     token = getattr(dj_settings, "TELEGRAM_BOT_TOKEN", None)
     if not token:
+        logger.warning("NO TELEGRAM_BOT_TOKEN in settings. Can't send to %s", chat_id)
         return
-    Bot(token=token).send_message(chat_id=chat_id, text=text)
-
+    try:
+        Bot(token=token).send_message(chat_id=chat_id, text=text)
+        logger.info("SENT to chat_id=%s: %s", chat_id, text[:50])
+    except Exception:
+        logger.exception("FAILED sending to chat_id=%s", chat_id)
 
 def _local_now(tz_name: str) -> datetime:
     # tz_name должен быть валидным IANA (Europe/Moscow) или UTC+X (если ты так разрешишь)
@@ -37,15 +48,26 @@ def tick_reminders():
         now = _local_now(s.timezone)
         hhmm = now.strftime("%H:%M")
         today = now.date()
+        
+        logger.info("tick user=%s tz=%s local=%s morning=%s evening=%s",
+            user.telegram_id, s.timezone, now.strftime("%Y-%m-%d %H:%M:%S"),
+            s.morning_time.strftime("%H:%M"),
+            s.evening_time.strftime("%H:%M"))
+
 
         # --- утро ---
-        if s.morning_enabled and hhmm == s.morning_time.strftime("%H:%M"):
+        target = datetime.combine(today, s.morning_time, tzinfo=ZoneInfo(s.timezone))
+        if s.morning_enabled and 0 <= (now - target).total_seconds() < 60:
+        # if s.morning_enabled and hhmm == s.morning_time.strftime("%H:%M"):
             entry, _ = DailyEntry.objects.get_or_create(user=user, date=today)
             if not entry.completed_morning:
                 _send_tg(user.telegram_id, "☀️ Доброе утро! Пора заполнить утренний блок 🌿")
 
+
         # --- вечер ---
-        if s.evening_enabled and hhmm == s.evening_time.strftime("%H:%M"):
+        target = datetime.combine(today, s.evening_time, tzinfo=ZoneInfo(s.timezone))
+        if s.evening_enabled and 0 <= (now - target).total_seconds() < 60:
+        # if s.evening_enabled and hhmm == s.evening_time.strftime("%H:%M"):
             entry, _ = DailyEntry.objects.get_or_create(user=user, date=today)
             if not entry.completed_evening:
                 _send_tg(user.telegram_id, "🌙 Добрый вечер! Пора заполнить вечерний блок ✨")

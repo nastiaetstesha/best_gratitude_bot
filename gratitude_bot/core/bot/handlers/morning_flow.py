@@ -96,9 +96,11 @@ def morning_handle_answer(update: Update, context: CallbackContext):
 
     # конец опросника
     if step >= len(q_ids):
-        DailyEntry.objects.filter(id=entry_id).update(completed_morning=True)
-        # ✅ стрик: мягко — день засчитан, если заполнено хоть что-то
         entry = DailyEntry.objects.get(id=entry_id)
+        entry.completed_morning = True
+        entry.save(update_fields=["completed_morning"])
+
+        # ✅ стрик: мягко — день засчитан, если заполнено хоть что-то
         user = get_or_create_tg_user(update)
         update_streak_on_activity(user, entry.date)
 

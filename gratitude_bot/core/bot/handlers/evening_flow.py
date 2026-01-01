@@ -1,5 +1,4 @@
 # gratitude_bot/core/bot/handlers/evening_flow.py
-
 from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import CallbackContext, ConversationHandler
 
@@ -9,6 +8,7 @@ from core.bot.keyboards.main_menu import (
     get_main_menu_keyboard,
 )
 from core.bot.handlers.utils import get_or_create_tg_user, get_or_create_today_entry
+from core.services.streak import update_streak_on_activity
 from core.models import Answer, DailyEntry
 
 
@@ -17,7 +17,6 @@ EV_GRAT_1, EV_GRAT_2, EV_GRAT_3, EV_BEST = range(4)
 
 EVENING_REDO_BUTTON = "Заполнить вечер заново"
 VIEW_TODAY_ANSWERS = "Посмотреть сегодняшние ответы"
-
 
 EVENING_QUESTIONS = [
     ("gratitude_1", "🌙 Вечер\n\n1) За что ты сегодня благодарна?"),
@@ -40,14 +39,9 @@ def get_evening_completed_keyboard():
 
 
 def evening_start(update: Update, context: CallbackContext):
-    """
-    Вход в вечерний опросник.
-    Если вечер уже заполнен — показываем меню (посмотреть/перезаполнить).
-    """
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
 
-    # ✅ ВАЖНО: если уже заполнено — не начинаем опросник
     if entry.completed_evening:
         update.message.reply_text(
             "🌙 Вечер на сегодня уже заполнен ✅\n\n"
@@ -65,7 +59,6 @@ def evening_start(update: Update, context: CallbackContext):
         reply_markup=get_cancel_keyboard(),
     )
 
-    # первый вопрос
     _, text = EVENING_QUESTIONS[0]
     update.message.reply_text(text)
     return EV_GRAT_1
@@ -74,7 +67,7 @@ def evening_start(update: Update, context: CallbackContext):
 def _save_answer(entry_id: int, question_text: str, answer_text: str):
     Answer.objects.create(
         daily_entry_id=entry_id,
-        question=None,  # вечер у тебя сейчас сохраняется без QuestionTemplate
+        question=None,  # вечер сейчас сохраняется без QuestionTemplate
         question_text=question_text,
         answer_text=answer_text.strip(),
     )
@@ -113,9 +106,14 @@ def evening_handle_answer(update: Update, context: CallbackContext):
     step += 1
     context.user_data["evening_step"] = step
 
-    # конец опросника
     if step >= len(EVENING_QUESTIONS):
         DailyEntry.objects.filter(id=entry_id).update(completed_evening=True)
+
+        # ✅ стрик
+        entry = DailyEntry.objects.get(id=entry_id)
+        user = entry.user
+        update_streak_on_activity(user, entry.date)
+
         _clear_evening_context(context)
 
         update.message.reply_text(
@@ -124,21 +122,15 @@ def evening_handle_answer(update: Update, context: CallbackContext):
         )
         return ConversationHandler.END
 
-    # следующий вопрос
     _, next_text = EVENING_QUESTIONS[step]
     update.message.reply_text(next_text)
     return _state_by_step(step)
 
 
 def evening_redo(update: Update, context: CallbackContext):
-    """
-    Удаляем вечерние ответы за сегодня и запускаем вечер заново.
-    Т.к. question=None, фильтруемся по question_text (там есть '🌙 Вечер' / 'Прекрасные моменты' и т.п.)
-    """
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
 
-    # удаляем ответы вечера по точным текстам вопросов
     evening_texts = [q[1] for q in EVENING_QUESTIONS]
     Answer.objects.filter(daily_entry=entry, question_text__in=evening_texts).delete()
 
@@ -148,56 +140,12 @@ def evening_redo(update: Update, context: CallbackContext):
     return evening_start(update, context)
 
 
-# def view_today_answers(update: Update, context: CallbackContext):
-#     """
-#     Показываем сегодняшние ответы (утро/вечер/другое).
-#     """
-#     user = get_or_create_tg_user(update)
-#     entry = get_or_create_today_entry(user)
+def evening_cancel(update: Update, context: CallbackContext):
+    _clear_evening_context(context)
+    update.message.reply_text("Ок, верну в меню 👇", reply_markup=get_main_menu_keyboard())
+    return ConversationHandler.END
 
-#     answers = Answer.objects.filter(daily_entry=entry).order_by("created_at")
-#     if not answers.exists():
-#         update.message.reply_text(
-#             "Сегодня пока нет ответов.\nНажми «Заполнить утро» или «Заполнить вечер».",
-#             reply_markup=get_main_menu_keyboard(),
-#         )
-#         return ConversationHandler.END
 
-#     morning, evening, other = [], [], []
-
-#     for a in answers:
-#         period = getattr(a.question, "period", None)
-#         if period == "morning":
-#             morning.append(a)
-#         elif period == "evening":
-#             evening.append(a)
-#         else:
-#             # вечер у тебя сохраняется с question=None, поэтому он попадёт сюда.
-#             # распознаем по эмодзи/заголовкам:
-#             qt = (a.question_text or "").lower()
-#             if "🌙" in (a.question_text or "") or "вечер" in qt:
-#                 evening.append(a)
-#             else:
-#                 other.append(a)
-
-#     parts = []
-#     if morning:
-#         parts.append("☀️ Утро:")
-#         for i, a in enumerate(morning, 1):
-#             parts.append(f"{i}) {a.answer_text}")
-
-#     if evening:
-#         parts.append("\n🌙 Вечер:")
-#         for i, a in enumerate(evening, 1):
-#             parts.append(f"{i}) {a.answer_text}")
-
-#     if other:
-#         parts.append("\n📝 Другое:")
-#         for i, a in enumerate(other, 1):
-#             parts.append(f"{i}) {a.answer_text}")
-
-#     update.message.reply_text("\n".join(parts), reply_markup=get_main_menu_keyboard())
-#     return ConversationHandler.END
 def view_today_answers(update: Update, context: CallbackContext):
     """
     Показываем сегодняшние ответы (утро/вечер/другое) с вопросами:
@@ -250,12 +198,6 @@ def view_today_answers(update: Update, context: CallbackContext):
             parts.append(f"❓ {a.question_text}\n→ {a.answer_text}")
 
     update.message.reply_text("\n".join(parts), reply_markup=get_main_menu_keyboard())
-    return ConversationHandler.END
-
-
-def evening_cancel(update: Update, context: CallbackContext):
-    _clear_evening_context(context)
-    update.message.reply_text("Ок, верну в меню 👇", reply_markup=get_main_menu_keyboard())
     return ConversationHandler.END
 
 
