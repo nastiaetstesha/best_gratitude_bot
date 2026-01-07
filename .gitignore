@@ -144,3 +144,4 @@ cython_debug/
 .DS_Store
 .idea/
 utils1.py
+.env.docker

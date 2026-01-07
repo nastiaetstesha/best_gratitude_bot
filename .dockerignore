@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.git
+.gitignore
+.env
+celerybeat-schedule.db
+db.sqlite3
+*.log
+.DS_Store
+.env.docker

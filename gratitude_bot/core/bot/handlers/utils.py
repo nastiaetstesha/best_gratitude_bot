@@ -1,7 +1,7 @@
 # gratitude_bot/core/bot/handlers/utils.py
 
 from datetime import date, timedelta
-from turtle import update
+# from turtle import update
 
 from django.utils import timezone
 
