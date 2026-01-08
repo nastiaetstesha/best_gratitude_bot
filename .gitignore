@@ -145,3 +145,4 @@ cython_debug/
 .idea/
 utils1.py
 .env.docker
+.env.local

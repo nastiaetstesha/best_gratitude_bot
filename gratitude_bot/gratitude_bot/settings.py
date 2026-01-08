@@ -9,7 +9,8 @@ from celery.schedules import crontab
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # .../gratitude_bot
 PROJECT_DIR = BASE_DIR.parent                      # .../best_gratitude_bot
-load_dotenv(PROJECT_DIR / ".env")
+load_dotenv(PROJECT_DIR / ".env.local")
+
 
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
