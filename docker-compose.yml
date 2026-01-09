@@ -32,28 +32,45 @@ services:
 
   web:
     build: .
-    env_file: .env.docker
     working_dir: /app/gratitude_bot
-    command: python manage.py runserver 0.0.0.0:8001
-    volumes:
-      - .:/app
-    ports:
-      - "8001:8001"
+    command: >
+      sh -c "
+      python manage.py collectstatic --noinput &&
+      gunicorn gratitude_bot.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 2
+      --timeout 60
+      --access-logfile -
+      --error-logfile -
+      "
+    env_file:
+      - .env.docker
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - .:/app
+      - static_data:/app/gratitude_bot/staticfiles
+      - media_data:/app/gratitude_bot/media
+    restart: unless-stopped
     logging:
       options:
         max-size: "10m"
         max-file: "3"
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - web
+    ports:
+      - "8001:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - static_data:/static:ro
+      - media_data:/media:ro
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import socket; s=socket.socket(); s.settimeout(2); s.connect(('127.0.0.1',8001)); s.close()\""]
-      interval: 10s
-      timeout: 3s
-      retries: 20
 
   bot:
     build: .
@@ -114,3 +131,5 @@ services:
 volumes:
   pg_data:
   redis_data:
+  static_data:
+  media_data:

@@ -32,4 +32,6 @@ urllib3==1.26.20
 vine==5.1.0
 wcwidth==0.2.14
 flower==2.0.1
-
+gunicorn==22.0.0
+django-import-export>=4.0
+tablib==3.7.0

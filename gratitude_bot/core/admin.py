@@ -1,4 +1,7 @@
+# gratitude_bot/core/admin.py
 from django.contrib import admin
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
 
 from .models import (
     TelegramUser,
@@ -11,6 +14,15 @@ from .models import (
     NudgePhrase,
     StreakState,
 )
+
+class WeeklyTaskResource(resources.ModelResource):
+    class Meta:
+        model = WeeklyTask
+        # чтобы импорт делал апдейт, а не создавал дубликаты
+        import_id_fields = ("iso_year", "iso_week")
+        fields = ("iso_year", "iso_week", "title", "description", "is_active")
+        skip_unchanged = True
+        report_skipped = True
 
 
 @admin.register(TelegramUser)
@@ -47,9 +59,13 @@ class AnswerAdmin(admin.ModelAdmin):
 
 
 @admin.register(WeeklyTask)
-class WeeklyTaskAdmin(admin.ModelAdmin):
-    list_display = ("title", "is_active", "created_at")
-    list_filter = ("is_active",)
+class WeeklyTaskAdmin(ImportExportModelAdmin):
+    resource_class = WeeklyTaskResource
+    list_display = ("title", "iso_year", "iso_week", "is_active", "created_at")
+    list_filter = ("iso_year", "is_active")
+    search_fields = ("title", "description")
+    ordering = ("-iso_year", "-iso_week")
+
 
 
 @admin.register(WeeklyCycle)
