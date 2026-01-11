@@ -116,6 +116,8 @@ class DailyEntry(models.Model):
         "Вечерний блок заполнен",
         default=False,
     )
+    skipped = models.BooleanField("День пропущен", default=False)
+    skipped_at = models.DateTimeField("Когда пропущен", null=True, blank=True)
 
     # Необязательное поле – можно использовать для “мood трекера”
     mood = models.PositiveSmallIntegerField(

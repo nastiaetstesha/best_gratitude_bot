@@ -24,16 +24,23 @@ SET_WEEK_START_BUTTON = "День начала недели"
 TOGGLE_MORNING_BUTTON = "Утренние напоминания: вкл/выкл"
 TOGGLE_EVENING_BUTTON = "Вечерние напоминания: вкл/выкл"
 TOGGLE_MISSED_BUTTON = "Уведомления о пропусках: вкл/выкл"
+# Today menu
+FILL_MORNING_BUTTON = "Заполнить утро"
+FILL_EVENING_BUTTON = "Заполнить вечер"
+VIEW_TODAY_ANSWERS_BUTTON = "Посмотреть сегодняшние ответы"
+SKIP_TODAY_BUTTON = "Пропустить сегодня"
 
 
-def get_main_menu_keyboard():
-    buttons = [
-        ["Сегодня", "Утро"],
-        ["Вечер", "Неделя"],
-        ["История"],
-        ["Статистика", "Настройки"],
-    ]
-    return ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=False)
+def get_today_menu_keyboard():
+    return ReplyKeyboardMarkup(
+        [
+            [FILL_MORNING_BUTTON, FILL_EVENING_BUTTON],
+            [VIEW_TODAY_ANSWERS_BUTTON, SKIP_TODAY_BUTTON],
+            [BACK_BUTTON],
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+    )
 
 
 def get_cancel_keyboard():

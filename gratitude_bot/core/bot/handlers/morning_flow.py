@@ -33,6 +33,9 @@ def morning_start(update: Update, context: CallbackContext):
     """
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
+    if entry.skipped:
+        entry.skipped = False
+        entry.save(update_fields=["skipped"])
 
     # Если уже заполнено — не запускаем заново без явного выбора
     if entry.completed_morning:

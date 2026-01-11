@@ -12,6 +12,9 @@ from telegram.ext import (
     ConversationHandler,
     Filters,
 )
+from core.bot.handlers.today import skip_today
+from core.bot.keyboards.main_menu import SKIP_TODAY_BUTTON
+
 from telegram.ext import MessageHandler, Filters, CommandHandler
 
 from core.bot.handlers.common import start, back_to_main_menu, today_menu
@@ -201,6 +204,7 @@ def build_updater() -> Updater:
     dp.add_handler(MessageHandler(Filters.regex(r"^Сегодня$"), today_menu))
     # dp.add_handler(MessageHandler(Filters.regex(r"^Утро$"), morning_start))
     # dp.add_handler(MessageHandler(Filters.regex(r"^Вечер$"), evening_start))
+    dp.add_handler(MessageHandler(Filters.regex(rf"^{SKIP_TODAY_BUTTON}$"), skip_today))
     dp.add_handler(MessageHandler(Filters.regex(r"^Неделя$"), week_menu))
     # dp.add_handler(MessageHandler(Filters.regex(r"^История$"), history_menu))
     stats_conv = ConversationHandler(

@@ -41,6 +41,9 @@ def get_evening_completed_keyboard():
 def evening_start(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
     entry = get_or_create_today_entry(user)
+    if entry.skipped:
+        entry.skipped = False
+        entry.save(update_fields=["skipped"])
 
     if entry.completed_evening:
         update.message.reply_text(

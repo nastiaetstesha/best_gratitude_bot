@@ -55,7 +55,8 @@ def tick_reminders():
             entry.completed_morning,
             entry.completed_evening,
         )
-
+        if entry.skipped:
+            continue
         # --- утро ---
         morning_target = datetime.combine(today, s.morning_time, tzinfo=tz)
         morning_delta = (now - morning_target).total_seconds()
