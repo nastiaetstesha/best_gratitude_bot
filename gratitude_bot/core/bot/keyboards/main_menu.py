@@ -30,6 +30,14 @@ FILL_EVENING_BUTTON = "Заполнить вечер"
 VIEW_TODAY_ANSWERS_BUTTON = "Посмотреть сегодняшние ответы"
 SKIP_TODAY_BUTTON = "Пропустить сегодня"
 
+def get_main_menu_keyboard():
+    buttons = [
+        ["Сегодня", "Утро"],
+        ["Вечер", "Неделя"],
+        ["История"],
+        ["Статистика", "Настройки"],
+    ]
+    return ReplyKeyboardMarkup(buttons, resize_keyboard=True, one_time_keyboard=False)
 
 def get_today_menu_keyboard():
     return ReplyKeyboardMarkup(
@@ -47,16 +55,16 @@ def get_cancel_keyboard():
     return ReplyKeyboardMarkup([[BACK_BUTTON]], resize_keyboard=True, one_time_keyboard=True)
 
 
-def get_today_menu_keyboard():
-    return ReplyKeyboardMarkup(
-        [
-            ["Заполнить утро", "Заполнить вечер"],
-            ["Посмотреть сегодняшние ответы", "Пропустить сегодня"],
-            [BACK_BUTTON],
-        ],
-        resize_keyboard=True,
-        one_time_keyboard=False,
-    )
+# def get_today_menu_keyboard():
+#     return ReplyKeyboardMarkup(
+#         [
+#             ["Заполнить утро", "Заполнить вечер"],
+#             ["Посмотреть сегодняшние ответы", "Пропустить сегодня"],
+#             [BACK_BUTTON],
+#         ],
+#         resize_keyboard=True,
+#         one_time_keyboard=False,
+#     )
 
 
 def get_morning_completed_keyboard():

@@ -94,4 +94,4 @@ def tick_reminders():
             missed = (not e) or (not e.completed_morning and not e.completed_evening)
             logger.info("missed-check user=%s missed=%s", user.telegram_id, missed)
             if missed:
-                _send_tg(user.telegram_id, "🫶 Вчера был пропуск. Хочешь вернуться сегодня? Я рядом.")
+                _send_tg(user.telegram_id, "🫶 Вчера был пропуск. Хочешь вернуться сегодня?")

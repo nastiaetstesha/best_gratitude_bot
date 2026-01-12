@@ -30,8 +30,7 @@ def skip_today(update: Update, context: CallbackContext):
 
     update.message.reply_text(
         "Ок, сегодня пропускаем ✅\n\n"
-        "Если позже появятся силы — можешь вернуться и заполнить утро/вечер даже одним предложением. "
-        "Я рядом 🤍",
+        "Если позже появятся силы — можешь вернуться и заполнить утро/вечер даже одним предложением. ",
         reply_markup=get_today_menu_keyboard(),
     )
     return ConversationHandler.END
