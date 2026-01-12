@@ -144,7 +144,9 @@ def week_view(update: Update, context: CallbackContext):
 
     task_text = ""
     if cycle.task:
-        task_text = f"\n🎯 Задание недели: {cycle.task.title}\n{cycle.task.description}\n"
+        task_text = (f"\n🎯 Задание недели: {cycle.task.title}\n{cycle.task.description}\n"
+        f"Выполни задание, нажав кнопку 'Заполнить неделю'./n"
+        f"Это только описание задания - отвечать на сообщение не нужно\n")
 
     mid = cycle.mid_reflection.strip() if (cycle.mid_reflection or "").strip() else "—"
     fin = cycle.final_reflection.strip() if (cycle.final_reflection or "").strip() else "—"

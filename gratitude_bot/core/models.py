@@ -238,7 +238,7 @@ class Answer(models.Model):
 
 class WeeklyTask(models.Model):
     """
-    Задание недели (как в твоем дневнике).
+    Задание недели.
     """
     title = models.CharField(
         "Название задания",

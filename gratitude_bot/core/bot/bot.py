@@ -17,7 +17,7 @@ from core.bot.keyboards.main_menu import SKIP_TODAY_BUTTON
 
 from telegram.ext import MessageHandler, Filters, CommandHandler
 
-from core.bot.handlers.common import start, back_to_main_menu, today_menu
+from core.bot.handlers.common import start, back_to_main_menu, today_menu, help
 from telegram.ext import ConversationHandler
 
 from telegram.ext import ConversationHandler
@@ -171,6 +171,7 @@ def build_updater() -> Updater:
 
     # /start
     dp.add_handler(CommandHandler("start", start))
+    dp.add_handler(CommandHandler("help", help))
     history_conv = ConversationHandler(
     entry_points=[
         MessageHandler(Filters.regex(r"^История$"), history_menu),
