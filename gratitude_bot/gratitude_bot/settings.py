@@ -28,7 +28,7 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost", "http://80.89.224.137:8001"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "80.89.224.137"]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://80.89.224.137:8001",
@@ -89,7 +89,7 @@ DATABASES = {
         "NAME": os.getenv("POSTGRES_DB"),
         "USER": os.getenv("POSTGRES_APP_USER"),
         "PASSWORD": os.getenv("POSTGRES_APP_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST", "127.0.0.1"),
+        "HOST": os.getenv("POSTGRES_HOST", "postgres"),
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
