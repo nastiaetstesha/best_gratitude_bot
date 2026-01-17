@@ -1,5 +1,7 @@
 from telegram import Update
 from telegram.ext import CallbackContext, ConversationHandler
+from telegram.utils.helpers import escape_markdown
+
 
 from core.bot.handlers.utils import (
     get_or_create_tg_user,
@@ -145,8 +147,9 @@ def week_view(update: Update, context: CallbackContext):
     task_text = ""
     if cycle.task:
         task_text = (f"\n🎯 Задание недели: {cycle.task.title}\n{cycle.task.description}\n"
-        f"Выполни задание, нажав кнопку 'Заполнить неделю'./n"
-        f"Это только описание задания - отвечать на сообщение не нужно\n")
+        # f"Выполни задание, нажав кнопку 'Заполнить неделю'.\n"
+        # f"Это только описание задания - отвечать на сообщение не нужно\n"
+        )
 
     mid = cycle.mid_reflection.strip() if (cycle.mid_reflection or "").strip() else "—"
     fin = cycle.final_reflection.strip() if (cycle.final_reflection or "").strip() else "—"
@@ -165,6 +168,7 @@ def week_view(update: Update, context: CallbackContext):
 def week_menu(update: Update, context: CallbackContext):
     update.message.reply_text("Неделя 📆", reply_markup=get_week_menu_keyboard())
 
+# !!!!!!!!!!
 
 def week_task_show(update: Update, context: CallbackContext):
     user = get_or_create_tg_user(update)
@@ -179,12 +183,16 @@ def week_task_show(update: Update, context: CallbackContext):
         )
         return
 
+    title = escape_markdown(cycle.task.title, version=2)
+    description = escape_markdown(cycle.task.description, version=2)
     update.message.reply_text(
         f"🎯 Задание недели\n\n"
-        f"**{cycle.task.title}**\n\n"
-        f"{cycle.task.description}",
+        f"*{title}*\n\n"
+        f"{description}\n\n"
+        f"> Выполни задание, нажав кнопку 'Заполнить неделю'\\.\n"
+        f"> Это только описание задания \\- отвечать на сообщение не нужно\n",
         reply_markup=get_week_menu_keyboard(),
-        parse_mode="Markdown",
+        parse_mode="MarkdownV2",
     )
 
 def week_redo(update: Update, context: CallbackContext):
