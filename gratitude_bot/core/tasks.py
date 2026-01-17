@@ -68,7 +68,7 @@ def tick_reminders():
             morning_delta,
             entry.completed_morning,
         )
-        if s.morning_enabled and 0 <= morning_delta < 120:
+        if s.morning_enabled and 0 <= morning_delta < 60:
             if not entry.completed_morning:
                 _send_tg(user.telegram_id, "☀️ Доброе утро! Пора заполнить утренний блок 🌿")
 
@@ -83,7 +83,7 @@ def tick_reminders():
             evening_delta,
             entry.completed_evening,
         )
-        if s.evening_enabled and 0 <= evening_delta < 120:
+        if s.evening_enabled and 0 <= evening_delta < 60:
             if not entry.completed_evening:
                 _send_tg(user.telegram_id, "🌙 Добрый вечер! Пора заполнить вечерний блок ✨")
 
